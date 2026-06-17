@@ -1,14 +1,21 @@
-name: Build Automatically
+name: Deploy static build to GitHub Pages
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: true
 
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -21,11 +28,54 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build the project
+      - name: Build static export
+        env:
+          STATIC_EXPORT: '1'
         run: npm run build
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      # The Nitro "static" preset writes the FTP-ready bundle to .output/public.
+      # If the build (or a future Nitro version) lands the files in dist/ or
+      # dist/client/ instead, fall back to that — we always end up with a
+      # single `site/` folder containing index.html + assets/.
+      - name: Collect static site
+        run: |
+          set -euo pipefail
+          if [ -f .output/public/index.html ]; then
+            SRC=".output/public"
+          elif [ -f dist/client/index.html ]; then
+            SRC="dist/client"
+          elif [ -f dist/index.html ]; then
+            SRC="dist"
+          else
+            echo "::error::No index.html produced by the build."
+            ls -R .output dist 2>/dev/null || true
+            exit 1
+          fi
+          echo "Using build output from: $SRC"
+          rm -rf site
+          mkdir -p site
+          cp -R "$SRC"/. site/
+
+          # Ensure required root-level files exist on gh-pages even if the
+          # build pipeline didn't copy them across.
+          for f in .nojekyll favicon.ico og-image.png placeholder.svg robots.txt; do
+            if [ ! -f "site/$f" ] && [ -f "public/$f" ]; then
+              cp "public/$f" "site/$f"
+            fi
+          done
+          touch site/.nojekyll
+
+          echo "---- gh-pages payload ----"
+          ls -la site
+          echo "---- assets/ ----"
+          ls -la site/assets 2>/dev/null || true
+
+      - name: Deploy to gh-pages (orphan branch, build output only)
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./site
+          publish_branch: gh-pages
+          force_orphan: true
+          enable_jekyll: false
+          commit_message: 'deploy: static build from ${{ github.sha }}'
