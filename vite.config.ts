@@ -3,13 +3,30 @@
 //   - tanstackStart, viteReact, tailwindcss, tsConfigPaths, nitro (build-only using cloudflare as a default target),
 //     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
 //     error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
+// When STATIC_EXPORT=1 (used by the GitHub Pages workflow) we produce a fully
+// static, FTP-ready build: relative asset paths (./assets/...), prerendered
+// index.html, no Cloudflare/Nitro server output.
+const isStaticExport = process.env.STATIC_EXPORT === "1";
+
 export default defineConfig({
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
-    server: { entry: "server" },
+  vite: {
+    // Relative base so the built site works from any subdirectory / FTP root.
+    base: isStaticExport ? "./" : "/",
   },
+  tanstackStart: {
+    server: { entry: "server" },
+    // Prerender "/" into a static index.html during build.
+    prerender: {
+      enabled: true,
+      crawlLinks: true,
+      autoSubfolderIndex: false,
+    },
+    pages: [{ path: "/", prerender: { enabled: true } }],
+    spa: { enabled: true },
+  },
+  // Force the static Nitro preset on GH Actions so the deploy is a plain
+  // bundle of HTML + assets/ (no Cloudflare Worker output).
+  nitro: isStaticExport ? { preset: "static" } : undefined,
 });
