@@ -14,9 +14,8 @@ export default defineConfig({
     server: { entry: "server" },
     ...(isStaticExport
       ? {
-          prerender: { enabled: true, crawlLinks: true, autoSubfolderIndex: false },
+          prerender: { enabled: true, crawlLinks: true },
           pages: [{ path: "/", prerender: { enabled: true } }],
-          spa: { enabled: true },
         }
       : {}),
   },
