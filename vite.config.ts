@@ -20,4 +20,5 @@ export default defineConfig({
         }
       : {}),
   },
+  nitro: isStaticExport ? { preset: "node-server" } : undefined,
 });
