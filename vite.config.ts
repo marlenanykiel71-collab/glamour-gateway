@@ -20,5 +20,10 @@ export default defineConfig({
         }
       : {}),
   },
-  nitro: isStaticExport ? { preset: "node-server" } : undefined,
+  nitro: isStaticExport
+    ? {
+        preset: "node-server",
+        output: { dir: "dist", serverDir: "dist/server", publicDir: "dist/client" },
+      }
+    : undefined,
 });
