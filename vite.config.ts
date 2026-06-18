@@ -3,7 +3,7 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 // STATIC_EXPORT=1 → produce a fully static, FTP-ready build for GitHub Pages:
-// relative asset paths (./assets/...), prerendered index.html, no server output.
+// relative asset paths (./assets/...), prerendered index.html.
 const isStaticExport = process.env.STATIC_EXPORT === "1";
 
 export default defineConfig({
@@ -14,11 +14,10 @@ export default defineConfig({
     server: { entry: "server" },
     ...(isStaticExport
       ? {
-          prerender: { enabled: true, crawlLinks: true, autoSubfolderIndex: false },
+          prerender: { enabled: true, crawlLinks: true },
           pages: [{ path: "/", prerender: { enabled: true } }],
-          spa: { enabled: true },
         }
       : {}),
   },
-  nitro: isStaticExport ? { preset: "static" } : undefined,
+  nitro: isStaticExport ? false : undefined,
 });
